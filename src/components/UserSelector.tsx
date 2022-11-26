@@ -1,24 +1,19 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import classNames from 'classnames';
-import { UserContext } from './UsersContext';
 import { User } from '../types/User';
+import { useAppSelector, useAppDispatch } from '../app/hooks';
+import { setSelectedUser, setUserPosts } from '../features/posts/postsSlice';
+import { getUserPosts } from '../api/posts';
 
-type Props = {
-  value: User | null;
-  onChange: (user: User) => void;
-};
-
-export const UserSelector: React.FC<Props> = ({
-  // `value` and `onChange` are traditional names for the form field
-  // `selectedUser` represents what actually stored here
-  value: selectedUser,
-  onChange,
-}) => {
+export const UserSelector: React.FC = () => {
   // `users` are loaded from the API, so for the performance reasons
   // we load them once in the `UsersContext` when the `App` is opened
   // and now we can easily reuse the `UserSelector` in any form
-  const users = useContext(UserContext);
   const [expanded, setExpanded] = useState(false);
+
+  const users = useAppSelector(state => state.posts.users);
+  const dispatch = useAppDispatch();
+  const selectedUser = useAppSelector(state => state.posts.selectedUser);
 
   useEffect(() => {
     if (!expanded) {
@@ -41,6 +36,20 @@ export const UserSelector: React.FC<Props> = ({
   // we don't want to listening for outside clicks
   // when the Dopdown is closed
   }, [expanded]);
+
+  const handleUserSelect = (user: User) => {
+    dispatch(setSelectedUser(user));
+
+    const setPosts = async () => {
+      const postsData = await getUserPosts(user.id);
+
+      dispatch(setUserPosts(postsData));
+    };
+
+    setPosts();
+
+    setExpanded(false);
+  };
 
   return (
     <div
@@ -69,12 +78,12 @@ export const UserSelector: React.FC<Props> = ({
 
       <div className="dropdown-menu" id="dropdown-menu" role="menu">
         <div className="dropdown-content">
-          {users.map(user => (
+          {users.map((user: User) => (
             <a
               key={user.id}
               href={`#user-${user.id}`}
               onClick={() => {
-                onChange(user);
+                handleUserSelect(user);
               }}
               className={classNames('dropdown-item', {
                 'is-active': user.id === selectedUser?.id,

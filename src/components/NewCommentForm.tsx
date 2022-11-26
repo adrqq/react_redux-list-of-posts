@@ -1,13 +1,14 @@
 import classNames from 'classnames';
 import React, { useState } from 'react';
-import { CommentData } from '../types/Comment';
+import { Comment } from '../types/Comment';
+import { useAppDispatch, useAppSelector } from '../app/hooks';
+import { setPostComments } from '../features/posts/postsSlice';
 
-type Props = {
-  onSubmit: (data: CommentData) => Promise<void>;
-};
-
-export const NewCommentForm: React.FC<Props> = ({ onSubmit }) => {
+export const NewCommentForm: React.FC = () => {
   const [submitting, setSubmitting] = useState(false);
+
+  const dispatch = useAppDispatch();
+  const comments = useAppSelector(state => state.posts.userComments);
 
   const [errors, setErrors] = useState({
     name: false,
@@ -15,19 +16,7 @@ export const NewCommentForm: React.FC<Props> = ({ onSubmit }) => {
     body: false,
   });
 
-  const [{ name, email, body }, setValues] = useState({
-    name: '',
-    email: '',
-    body: '',
-  });
-
   const clearForm = () => {
-    setValues({
-      name: '',
-      email: '',
-      body: '',
-    });
-
     setErrors({
       name: false,
       email: false,
@@ -38,34 +27,49 @@ export const NewCommentForm: React.FC<Props> = ({ onSubmit }) => {
   const handleChange = (
     event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
-    const { name: field, value } = event.target;
+    const { name: field } = event.target;
 
-    setValues(current => ({ ...current, [field]: value }));
     setErrors(current => ({ ...current, [field]: false }));
   };
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
 
-    setErrors({
+    const { name, email, body } = event.target as typeof event.target & {
+      name: { value: string };
+      email: { value: string };
+      body: { value: string };
+    };
+
+    const newErrors = {
       name: !name,
       email: !email,
       body: !body,
-    });
+    };
 
-    if (!name || !email || !body) {
+    setErrors(newErrors);
+
+    if (Object.values(newErrors).some(Boolean)) {
       return;
     }
 
     setSubmitting(true);
 
-    // it is very easy to forget about `await` keyword
-    await onSubmit({ name, email, body });
+    const newComment: Comment = {
+      id: comments?.length || 0 + 1,
+      name: name.value,
+      email: email.value,
+      body: body.value,
+      postId: 1,
+    };
 
-    // and the spinner will disappear immediately
+    if (comments) {
+      dispatch(setPostComments([...comments, newComment]));
+    }
+
+    clearForm();
+
     setSubmitting(false);
-    setValues(current => ({ ...current, body: '' }));
-    // We keep the entered name and email
   };
 
   return (
